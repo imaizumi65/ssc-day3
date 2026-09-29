@@ -8,7 +8,7 @@
 
 ## 1. 実験の目的
 
-本実験では、高級言語 **SSL (Simple Small Language)** のソースコード（`.ssl`）を入力とし、第2回で作成したアセンブラが解釈できる **SSCアセンブリ言語 (`.sss`)** を出力するコンパイラ (`ssc_comp.py`) を作成する。
+本実験では、簡単なC言語風の言語 **SSL (Simple Small Language)** のソースコード（`.ssl`）を入力とし、前回作成したアセンブラが解釈できる **SSCアセンブリ言語 (`.sss`)** を出力するコンパイラ (`ssc_comp.py`) を作成する。
 
 字句解析（Lexer）および再帰下降構文解析（Parser）の骨格コードを活用し、代入文、算術演算、条件分岐（`if-else`）、繰り返し構文（`while`, `repeat-until`）に対応する**コード生成（Code Generation）ロジック**を実装する。
 
