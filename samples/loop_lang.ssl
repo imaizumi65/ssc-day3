@@ -1,0 +1,8 @@
+# --- 2倍加算ループプログラム (loop_lang.ssl) ---
+var x;
+x := 1;
+write x;
+while x >= 0 do
+    x := x + x;
+    write x;
+done

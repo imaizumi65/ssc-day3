@@ -75,6 +75,12 @@ class Lexer:
                 self.pos += 1
                 continue
 
+            # --- # による1行コメントの読み飛ばし ---
+            if c == "#":
+                while self.pos < len(self.text) and self.text[self.pos] != "\n":
+                    self.pos += 1
+                continue
+
             if c.isalpha():
                 start = self.pos
                 while self.pos < len(self.text) and (
