@@ -78,7 +78,7 @@ Day3/
 │   ├── ssc_dis.py     # (Day2よりコピー) ディスアセンブラ
 │   ├── ssc_trans.py   # (Day2よりコピー) 参考トランスレータ
 │   ├── ssc_asm.py     # (Day2よりコピー) 2パスアセンブラ
-│   └── ssc_comp.py    # 【課題対象】高給言語コンパイラのテンプレート
+│   └── ssc_comp.py    # 【課題対象】高級言語コンパイラのテンプレート
 └── samples/           # 入出力テスト用サンプルプログラム群
     ├── add_lang.ssl   # 基本加算プログラム
     └── loop_lang.ssl  # 2倍加算ループプログラム
@@ -110,11 +110,15 @@ Day3/
 
 #### 実行確認手順
 
+**1. CLI（ターミナル）からの実行確認:**
 ターミナルで `Day3/` ディレクトリに移動し、以下のコマンドを実行してアセンブリが正しく出力されるか確認せよ。
 
 ```bash
 python src/ssc_comp.py samples/add_lang.ssl
 ```
+
+**2. IDE (PyCharm等) からの直接デバッグ実行:**
+`src/ssc_comp.py` 末尾の `if __name__ == "__main__":` ブロック内にあるコメントを切り替えることで、組み込みサンプル (`source_text=SAMPLE_PROGRAM`) や指定ファイル (`file="..."`) のコンパイル結果をIDEから直接確認・デバッグできます。
 
 ---
 
