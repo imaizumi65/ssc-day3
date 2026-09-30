@@ -371,5 +371,20 @@ def main(
         sys.exit(1)
 
 
+SAMPLE_PROGRAM = """
+# 基本加算プログラム (add_lang.ssl)
+write 3 + 5
+"""
+
+
 if __name__ == "__main__":
-    main()
+    # --- 呼び出し方法の例 ---
+
+    # 例1: ソースコード文字列を直接指定してテスト実行
+    main(source_text=SAMPLE_PROGRAM)
+
+    # 例2: ファイル名を直接指定してテスト実行
+    # main(file="../samples/add_lang.ssl")
+
+    # 例3: コマンドライン引数（または標準入力）から実行する通常動作
+    # main()
