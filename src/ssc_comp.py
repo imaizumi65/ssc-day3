@@ -44,7 +44,6 @@ class Token:
 
 class Lexer:
     """SSL言語の字句解析器 (完全提供コード)"""
-
     KEYWORDS = {
         token.value: token for token in TokenType if token.value.isalpha()
     }
@@ -115,6 +114,41 @@ class Lexer:
 
 class SSLCompiler:
     """【第3回 課題】SSL言語 (.ssl) から SSCアセンブリ (.sss) を生成するコンパイラ"""
+    # 対象言語のBNF
+    #   [] は省略可能、{} は0回以上の繰り返しを表す
+    #
+    # (* プログラム全体 *)
+    # <program>       ::= { <var_decl> } <block>
+    #
+    # (* 変数宣言 *)
+    # <var_decl>      ::= "var" <ident> { "," <ident> } [ ";" ]
+    #
+    # (* 文のブロック *)
+    # <block>         ::= { <statement> [ ";" ] }
+    #
+    # (* 文 *)
+    # <statement>     ::= <if_stmt>
+    #                   | <while_stmt>
+    #                   | <repeat_stmt>
+    #                   | <assign_stmt>
+    #                   | <read_stmt>
+    #                   | <write_stmt>
+    #
+    # (* 各種文の構造 *)
+    # <if_stmt>       ::= "if" <condition> "then" <block> [ "else" <block> ] "endif"
+    # <while_stmt>    ::= "while" <condition> "do" <block> "done"
+    # <repeat_stmt>   ::= "repeat" <block> "until" <condition>
+    # <assign_stmt>   ::= <ident> ":=" <expression>
+    # <read_stmt>     ::= "read" <ident>
+    # <write_stmt>    ::= "write" <expression>
+    #
+    # (* 条件式と比較演算子 *)
+    # <condition>     ::= <expression> <relop> <expression>
+    # <relop>         ::= "=" | "<>" | "<" | ">" | "<=" | ">="
+    #
+    # (* 算術式（加減算） *)
+    # <expression>    ::= <factor> { ( "+" | "-" ) <factor> }
+    # <factor>        ::= <ident> | <number>
 
     def __init__(self):
         self.lexer: Lexer | None = None
@@ -161,11 +195,18 @@ class SSLCompiler:
         return "\n".join(self.asm_code)
 
     def program(self):
+        # (* プログラム全体 *)
+        # <program>       ::= { <var_decl> } <block>
+        #
+        # (* 変数宣言 *)
+        # <var_decl>      ::= "var" <ident> { "," <ident> } [ ";" ]
+        #
         self.labnum += 1
         start_label = f"L_{self.labnum:03d}"
         self.emit(f"\tjump\t{start_label}")
         self.emit(f"{start_label}:")
 
+        # var_decl の処理
         while self.tok.type == TokenType.VAR:
             self.eat(TokenType.VAR)
             while True:
@@ -181,18 +222,21 @@ class SSLCompiler:
 
         self.block()
         self.eat(TokenType.EOF)
+        # プログラム終了
         self.emit("\tjump\t0")
 
         # 定数領域と変数領域の宣言を出力
         for n in self.nums:
             self.emit(f"N_{n:03d}:")
             self.emit(f"\tlit\t{n}")
-
         for v in self.vars:
             self.emit(f"V_{v}:")
             self.emit("\tdecl\t1")
 
     def block(self):
+        # (* 文のブロック *)
+        # <block>         ::= { <statement> [ ";" ] }
+        #
         while self.tok.type in (
             TokenType.IF,
             TokenType.WHILE,
@@ -206,6 +250,14 @@ class SSLCompiler:
                 self.eat(TokenType.SEMI)
 
     def statement(self):
+        # (* 文 *)
+        # <statement>     ::= <if_stmt>
+        #                   | <while_stmt>
+        #                   | <repeat_stmt>
+        #                   | <assign_stmt>
+        #                   | <read_stmt>
+        #                   | <write_stmt>
+        #
         if self.tok.type == TokenType.IF:
             self._statement_if()
         elif self.tok.type == TokenType.WHILE:
@@ -219,47 +271,92 @@ class SSLCompiler:
         elif self.tok.type == TokenType.WRITE:
             self._statement_write()
 
-    def _eval_expression(self) -> list[str]:
-        """式評価コードを評価バッファに分離して生成するヘルパー関数"""
-        saved_code = self.asm_code
-        self.asm_code = []
-        self.expression()
-        expr_code = self.asm_code
-        self.asm_code = saved_code
-        return expr_code
+    def _statement_if(self):
+        # <if_stmt>       ::= "if" <condition> "then" <block> [ "else" <block> ] "endif"
+        #
+        self.eat(TokenType.IF)
+        self.condition()
+        self.eat(TokenType.THEN)
 
-    # -----------------------------------------------------------------
-    # 【課題1】基本文（代入・IO文・式評価）のコード生成
-    # -----------------------------------------------------------------
+        self.labnum += 1
+        exit_label_num = self.labnum
+        self.emit(f"\tjump\tL_{exit_label_num:03d}")
+
+        self.block()
+
+        if self.tok.type == TokenType.ELSE:
+            self.eat(TokenType.ELSE)
+            self.block()
+            # TODO: if-else のコード生成
+            raise NotImplementedError("SSLCompiler._statement_if() のELSE部分のコード生成を実装してください。")
+        self.emit(f"L_{exit_label_num:03d}:")
+
+        self.eat(TokenType.ENDIF)
+
+    def _statement_while(self):
+        # <while_stmt>    ::= "while" <condition> "do" <block> "done"
+        #
+        self.eat(TokenType.WHILE)
+        self.condition()
+        self.eat(TokenType.DO)
+        self.block()
+        self.eat(TokenType.DONE)
+        # TODO: while のコード生成
+        raise NotImplementedError("SSLCompiler._statement_while() のコード生成を実装してください。")
+
+    def _statement_repeat(self):
+        # <repeat_stmt>   ::= "repeat" <block> "until" <condition>
+        #
+        self.eat(TokenType.REPEAT)
+        self.block()
+        self.eat(TokenType.UNTIL)
+        self.condition()
+        # TODO: repeat のコード生成
+        raise NotImplementedError("SSLCompiler._statement_repeat() のコード生成を実装してください。")
 
     def _statement_assign(self):
-        """代入文 (IDENT := EXPR) のコード生成"""
+        # <assign_stmt>   ::= <ident> ":=" <expression>
+        #
         var_name = self.tok.value
         self.eat(TokenType.IDENT)
         self.eat(TokenType.ASSIGN)
-
-        # TODO: _eval_expression() を呼び出して右辺の評価コードを取得し、
-        # self.asm_code に追加した上で、結果を変数 (V_var_name) に store する命令を出力せよ。
-        raise NotImplementedError("_statement_assign() を実装してください")
+        self.expression()
+        self.emit(f"\tstore\tV_{var_name}")
 
     def _statement_read(self):
-        """入力文 (read IDENT) のコード生成"""
+        # <read_stmt>     ::= "read" <ident>
+        #
         self.eat(TokenType.READ)
         var_name = self.tok.value
         self.eat(TokenType.IDENT)
         self.emit(f"\tread\tV_{var_name}")
 
     def _statement_write(self):
-        """出力文 (write EXPR) のコード生成"""
+        # <write_stmt>    ::= "write" <expression>
+        #
+        # TODO: 本来は expression を取るが IDENT だけに限定されている
         self.eat(TokenType.WRITE)
-        self.add_var("_tmp")
-        expr_code = self._eval_expression()
-        self.asm_code.extend(expr_code)
+        var_name = self.tok.value
+        self.eat(TokenType.IDENT)
+        self.emit(f"\twrite\tV_{var_name}")
+
+    def condition(self):
+        # (* 条件式と比較演算子 *)
+        # <condition>     ::= <expression> <relop> <expression>
+        # <relop>         ::= "=" | "<>" | "<" | ">" | "<=" | ">="
+        #
+        self.expression()
         self.emit("\tstore\tV__tmp")
-        self.emit("\twrite\tV__tmp")
+        op_tok = self.tok
+        if op_tok.type == TokenType.GT:
+            self.eat(TokenType.GT)
+            self.expression()
+            self.emit("\tsub\tV__tmp")
+        else:
+            # TODO: 他の演算子に対するコード生成
+            raise NotImplementedError("SSLCompiler.condition() のコード生成の残りを実装してください。")
 
     def expression(self):
-        """項および加減算 (EXPR + EXPR / EXPR - EXPR) の評価"""
         if self.tok.type == TokenType.IDENT:
             self.emit(f"\tload\tV_{self.tok.value}")
             self.eat(TokenType.IDENT)
@@ -268,70 +365,25 @@ class SSLCompiler:
             self.emit(f"\tload\tN_{self.add_num(val):03d}")
             self.eat(TokenType.NUMBER)
 
-        # TODO: WHILE ループで TokenType.PLUS または TokenType.MINUS を巡回し、
-        # 後続の IDENT や NUMBER の値を load/add/sub するアセンブリを出力せよ。
-        raise NotImplementedError("expression() を実装してください")
+        while self.tok.type in (TokenType.PLUS, TokenType.MINUS):
+            op = "add" if self.tok.type == TokenType.PLUS else "sub"
+            self.eat(self.tok.type)
+            if self.tok.type == TokenType.IDENT:
+                self.emit(f"\t{op}\tV_{self.tok.value}")
+                self.eat(TokenType.IDENT)
+            elif self.tok.type == TokenType.NUMBER:
+                val = int(self.tok.value)
+                self.emit(f"\t{op}\tN_{self.add_num(val):03d}")
+                self.eat(TokenType.NUMBER)
 
-    # -----------------------------------------------------------------
-    # 【課題2】制御文（IF, WHILE, REPEAT）と条件式のコード生成
-    # -----------------------------------------------------------------
-
-    def _statement_if(self):
-        """条件分岐 (if COND then BLOCK [else BLOCK] endif) のコード生成"""
-        self.eat(TokenType.IF)
-
-        # TODO:
-        # 1. self.condition() を呼び出して条件判定ロジックを出力
-        # 2. 偽の場合の飛び先ラベル (L_else) を生成し、jump 命令を出力
-        # 3. self.block() を呼び出して THEN 節のブロックを出力
-        # 4. ELSE 節が存在する場合は、THEN 節の末尾に EXIT 用ラベルへの jump 命令を出力し、
-        #    ELSE 節のブロックを出力せよ
-        raise NotImplementedError("_statement_if() を実装してください")
-
-    def _statement_while(self):
-        """ループ文 (while COND do BLOCK done) のコード生成"""
-        self.eat(TokenType.WHILE)
-
-        # TODO:
-        # 1. ループ先頭ラベル (L_loop) を生成し出力
-        # 2. self.condition() で条件判定コードを出力し、偽の際の脱出ラベル (L_exit) へ jump 命令を出力
-        # 3. DO ブロック (self.block()) を処理後、先頭ラベル (L_loop) へ戻る jump 命令を出力
-        # 4. 脱出ラベル (L_exit) を出力せよ
-        raise NotImplementedError("_statement_while() を実装してください")
-
-    def _statement_repeat(self):
-        """ループ文 (repeat BLOCK until COND) のコード生成"""
-        self.eat(TokenType.REPEAT)
-
-        # TODO:
-        # 1. ループ先頭ラベルを生成し出力
-        # 2. self.block() で本体ブロックを処理
-        # 3. UNTIL 節を処理し、条件が成立するまで先頭ラベルへ jump するロジックを実装せよ
-        raise NotImplementedError("_statement_repeat() を実装してください")
-
-    def condition(self):
-        """比較条件式のコード生成 (>, <, =, <>, >=, <=)"""
-        self.add_var("_tmp")
-        buf1 = self._eval_expression()
-
-        op_tok = self.tok
-        if op_tok.type in (
-            TokenType.GT,
-            TokenType.LT,
-            TokenType.EQ,
-            TokenType.NE,
-            TokenType.GE,
-            TokenType.LE,
-        ):
-            self.eat(op_tok.type)
-        else:
-            self.error("Expected comparison operator (>, <, =, <>, >=, <=)")
-
-        buf2 = self._eval_expression()
-
-        # TODO: 比較演算子に応じた AC の正負判定ロジックを生成せよ
-        # SSC の JUMP 命令は「AC >= 0 のときにジャンプする」仕様であることを利用すること。
-        raise NotImplementedError("condition() を実装してください")
+    def _extract_expression_code(self) -> list[str]:
+        # expressionの生成するコードを返す
+        saved_code = self.asm_code
+        self.asm_code = []
+        self.expression()
+        expr_code = self.asm_code
+        self.asm_code = saved_code
+        return expr_code
 
 
 def main(
@@ -372,8 +424,12 @@ def main(
 
 
 SAMPLE_PROGRAM = """
-# 基本加算プログラム (add_lang.ssl)
-write 3 + 5
+var	x;
+read x;
+if x > 0 then
+    x := 0 - x;
+endif;
+write x;
 """
 
 
