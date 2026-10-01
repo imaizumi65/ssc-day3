@@ -174,11 +174,20 @@ class SSLCompiler:
         if name not in self.vars:
             self.vars.append(name)
 
-    def add_num(self, n: int) -> int:
+    def get_var_label(self, name: str):
+        if name not in self.vars:
+            self.error(f"Variable '{name}' is not defined")
+        return f"V_{name}"
+
+    def get_num_label(self, n: int):
         n = (n + 256) % 256
         if n not in self.nums:
             self.nums.append(n)
-        return n
+        return f"N_{n:03d}"
+
+    def get_line_label(self) -> str:
+        self.labnum += 1
+        return f"L_{self.labnum:03d}"
 
     def emit(self, code: str):
         self.asm_code.append(code)
@@ -201,8 +210,7 @@ class SSLCompiler:
         # (* 変数宣言 *)
         # <var_decl>      ::= "var" <ident> { "," <ident> } [ ";" ]
         #
-        self.labnum += 1
-        start_label = f"L_{self.labnum:03d}"
+        start_label= self.get_line_label()
         self.emit(f"\tjump\t{start_label}")
         self.emit(f"{start_label}:")
 
@@ -230,7 +238,7 @@ class SSLCompiler:
             self.emit(f"N_{n:03d}:")
             self.emit(f"\tlit\t{n}")
         for v in self.vars:
-            self.emit(f"V_{v}:")
+            self.emit(f"{self.get_var_label(v)}:")
             self.emit("\tdecl\t1")
 
     def block(self):
@@ -278,9 +286,8 @@ class SSLCompiler:
         self.condition()
         self.eat(TokenType.THEN)
 
-        self.labnum += 1
-        exit_label_num = self.labnum
-        self.emit(f"\tjump\tL_{exit_label_num:03d}")
+        exit_label = self.get_line_label()
+        self.emit(f"\tjump\t{exit_label}")
 
         self.block()
 
@@ -289,9 +296,8 @@ class SSLCompiler:
             self.block()
             # TODO: if-else のコード生成
             raise NotImplementedError("SSLCompiler._statement_if() のELSE部分のコード生成を実装してください。")
-        self.emit(f"L_{exit_label_num:03d}:")
-
         self.eat(TokenType.ENDIF)
+        self.emit(f"{exit_label}:")
 
     def _statement_while(self):
         # <while_stmt>    ::= "while" <condition> "do" <block> "done"
@@ -321,7 +327,7 @@ class SSLCompiler:
         self.eat(TokenType.IDENT)
         self.eat(TokenType.ASSIGN)
         self.expression()
-        self.emit(f"\tstore\tV_{var_name}")
+        self.emit(f"\tstore\t{self.get_var_label(var_name)}")
 
     def _statement_read(self):
         # <read_stmt>     ::= "read" <ident>
@@ -329,7 +335,7 @@ class SSLCompiler:
         self.eat(TokenType.READ)
         var_name = self.tok.value
         self.eat(TokenType.IDENT)
-        self.emit(f"\tread\tV_{var_name}")
+        self.emit(f"\tread\t{self.get_var_label(var_name)}")
 
     def _statement_write(self):
         # <write_stmt>    ::= "write" <expression>
@@ -338,7 +344,7 @@ class SSLCompiler:
         self.eat(TokenType.WRITE)
         var_name = self.tok.value
         self.eat(TokenType.IDENT)
-        self.emit(f"\twrite\tV_{var_name}")
+        self.emit(f"\twrite\t{self.get_var_label(var_name)}")
 
     def condition(self):
         # (* 条件式と比較演算子 *)
@@ -346,35 +352,38 @@ class SSLCompiler:
         # <relop>         ::= "=" | "<>" | "<" | ">" | "<=" | ">="
         #
         self.expression()
-        self.emit("\tstore\tV__tmp")
+        self.add_var("_tmp")
+        self.emit(f"\tstore\t{self.get_var_label('_tmp')}")
         op_tok = self.tok
-        if op_tok.type == TokenType.GT:
+        if op_tok.type =f= TokenType.GT:
             self.eat(TokenType.GT)
             self.expression()
-            self.emit("\tsub\tV__tmp")
+            self.emit("\tsub\t{self.get_var_label('_tmp')}")
         else:
             # TODO: 他の演算子に対するコード生成
             raise NotImplementedError("SSLCompiler.condition() のコード生成の残りを実装してください。")
 
     def expression(self):
-        if self.tok.type == TokenType.IDENT:
-            self.emit(f"\tload\tV_{self.tok.value}")
-            self.eat(TokenType.IDENT)
-        elif self.tok.type == TokenType.NUMBER:
-            val = int(self.tok.value)
-            self.emit(f"\tload\tN_{self.add_num(val):03d}")
-            self.eat(TokenType.NUMBER)
-
-        while self.tok.type in (TokenType.PLUS, TokenType.MINUS):
-            op = "add" if self.tok.type == TokenType.PLUS else "sub"
-            self.eat(self.tok.type)
+        # (* 算術式（加減算） *)
+        # <expression>    ::= <factor> { ( "+" | "-" ) <factor> }
+        # <factor>        ::= <ident> | <number>
+        #
+        def sub_expression(op: str):
             if self.tok.type == TokenType.IDENT:
-                self.emit(f"\t{op}\tV_{self.tok.value}")
+                self.emit(f"\t{op}\t{self.get_var_label(self.tok.value)}")
                 self.eat(TokenType.IDENT)
             elif self.tok.type == TokenType.NUMBER:
                 val = int(self.tok.value)
-                self.emit(f"\t{op}\tN_{self.add_num(val):03d}")
+                self.emit(f"\t{op}\t{self.get_num_label(val)}")
                 self.eat(TokenType.NUMBER)
+            else:
+                self.error("Invalid expression element")
+
+        sub_expression("load")
+        while self.tok.type in (TokenType.PLUS, TokenType.MINUS):
+            op = "add" if self.tok.type == TokenType.PLUS else "sub"
+            self.eat(self.tok.type)
+            sub_expression(op)
 
     def _extract_expression_code(self) -> list[str]:
         # expressionの生成するコードを返す
@@ -426,7 +435,7 @@ def main(
 SAMPLE_PROGRAM = """
 var	x;
 read x;
-if x > 0 then
+if 0 > x then
     x := 0 - x;
 endif;
 write x;
