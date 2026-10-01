@@ -158,9 +158,9 @@ python src/ssc_comp.py samples/loop_lang.ssl | python src/ssc_asm.py | python sr
    自作コンパイラで動作するオリジナルのSSLプログラム（例: 階乗計算、ユークリッドの互除法、カウントダウン処理など）を自由な発想で作成し、コンパイル・実行を行え。
    * **ヒント**: 生成されるアセンブリコードが SSC のメモリ制限（32ワード）に収まるよう、工夫してプログラムを設計すること。
 
-2. **奇数判定構文 `odd(expression)` の実装**:
-   `condition()` において、単項演算子 `odd`（例: `if odd(x) then ...`）のサポートを拡張せよ。
-   * **ヒント**: SSC の  SHIFT 命令が解決の鍵です。
+2. **奇数判定構文 `odd expression` の実装**:
+   `condition()` において、単項演算子 `odd`（例: `if odd x then ...`）のサポートを拡張せよ。
+   * **ヒント**: SSC の SHIFT 命令が解決の鍵です。
 
 3. **アセンブリ出力の視認性向上**:
    出力される `.sss` コード内にコメント（例: `# while loop start`）を自動挿入するデバッグ機能を実装せよ。
