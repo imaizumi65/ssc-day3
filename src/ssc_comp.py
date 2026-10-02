@@ -174,12 +174,12 @@ class SSLCompiler:
         if name not in self.vars:
             self.vars.append(name)
 
-    def get_var_label(self, name: str):
+    def get_var_label(self, name: str) -> str:
         if name not in self.vars:
             self.error(f"Variable '{name}' is not defined")
         return f"V_{name}"
 
-    def get_num_label(self, n: int):
+    def get_num_label(self, n: int) -> str:
         n = (n + 256) % 256
         if n not in self.nums:
             self.nums.append(n)
@@ -386,7 +386,7 @@ class SSLCompiler:
             sub_expression(op)
 
     def _extract_expression_code(self) -> list[str]:
-        # expressionの生成するコードを返す
+        """expressionの生成するコードを返す"""
         saved_code = self.asm_code
         self.asm_code = []
         self.expression()
