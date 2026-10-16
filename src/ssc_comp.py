@@ -355,10 +355,10 @@ class SSLCompiler:
         self.add_var("_tmp")
         self.emit(f"\tstore\t{self.get_var_label('_tmp')}")
         op_tok = self.tok
-        if op_tok.type =f= TokenType.GT:
+        if op_tok.type == TokenType.GT:
             self.eat(TokenType.GT)
             self.expression()
-            self.emit("\tsub\t{self.get_var_label('_tmp')}")
+            self.emit(f"\tsub\t{self.get_var_label('_tmp')}")
         else:
             # TODO: 他の演算子に対するコード生成
             raise NotImplementedError("SSLCompiler.condition() のコード生成の残りを実装してください。")
