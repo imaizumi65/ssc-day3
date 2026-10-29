@@ -50,7 +50,6 @@ class Lexer:
     OPS_TWO = {
         token.value: token
         for token in TokenType
-        if len(token.value) == 2 and not token.value.startswith("<")
     }
     OPS_ONE = {token.value: token for token in TokenType if len(token.value) == 1}
 
@@ -211,7 +210,7 @@ class SSLCompiler:
         # <var_decl>      ::= "var" <ident> { "," <ident> } [ ";" ]
         #
         start_label= self.get_line_label()
-        self.emit(f"\tjump\t{start_label}")
+        self.emit(f"\tjump    {start_label}")
         self.emit(f"{start_label}:")
 
         # var_decl の処理
@@ -231,15 +230,15 @@ class SSLCompiler:
         self.block()
         self.eat(TokenType.EOF)
         # プログラム終了
-        self.emit("\tjump\t0")
+        self.emit("\tjump    0")
 
         # 定数領域と変数領域の宣言を出力
         for n in self.nums:
             self.emit(f"N_{n:03d}:")
-            self.emit(f"\tlit\t{n}")
+            self.emit(f"\tlit    \t{n}")
         for v in self.vars:
             self.emit(f"{self.get_var_label(v)}:")
-            self.emit("\tdecl\t1")
+            self.emit("\tdecl    1")
 
     def block(self):
         # (* 文のブロック *)
@@ -287,7 +286,7 @@ class SSLCompiler:
         self.eat(TokenType.THEN)
 
         exit_label = self.get_line_label()
-        self.emit(f"\tjump\t{exit_label}")
+        self.emit(f"\tjump    {exit_label}")
 
         self.block()
 
@@ -327,7 +326,7 @@ class SSLCompiler:
         self.eat(TokenType.IDENT)
         self.eat(TokenType.ASSIGN)
         self.expression()
-        self.emit(f"\tstore\t{self.get_var_label(var_name)}")
+        self.emit(f"\tstore   {self.get_var_label(var_name)}")
 
     def _statement_read(self):
         # <read_stmt>     ::= "read" <ident>
@@ -335,7 +334,7 @@ class SSLCompiler:
         self.eat(TokenType.READ)
         var_name = self.tok.value
         self.eat(TokenType.IDENT)
-        self.emit(f"\tread\t{self.get_var_label(var_name)}")
+        self.emit(f"\tread    {self.get_var_label(var_name)}")
 
     def _statement_write(self):
         # <write_stmt>    ::= "write" <expression>
@@ -344,7 +343,7 @@ class SSLCompiler:
         self.eat(TokenType.WRITE)
         var_name = self.tok.value
         self.eat(TokenType.IDENT)
-        self.emit(f"\twrite\t{self.get_var_label(var_name)}")
+        self.emit(f"\twrite   {self.get_var_label(var_name)}")
 
     def condition(self):
         # (* 条件式と比較演算子 *)
@@ -353,12 +352,12 @@ class SSLCompiler:
         #
         self.expression()
         self.add_var("_tmp")
-        self.emit(f"\tstore\t{self.get_var_label('_tmp')}")
+        self.emit(f"\tstore   {self.get_var_label('_tmp')}")
         op_tok = self.tok
         if op_tok.type == TokenType.GT:
             self.eat(TokenType.GT)
             self.expression()
-            self.emit(f"\tsub\t{self.get_var_label('_tmp')}")
+            self.emit(f"\tsub     {self.get_var_label('_tmp')}")
         else:
             # TODO: 他の演算子に対するコード生成
             raise NotImplementedError("SSLCompiler.condition() のコード生成の残りを実装してください。")
@@ -370,11 +369,11 @@ class SSLCompiler:
         #
         def sub_expression(op: str):
             if self.tok.type == TokenType.IDENT:
-                self.emit(f"\t{op}\t{self.get_var_label(self.tok.value)}")
+                self.emit(f"\t{op:<8}{self.get_var_label(self.tok.value)}")
                 self.eat(TokenType.IDENT)
             elif self.tok.type == TokenType.NUMBER:
                 val = int(self.tok.value)
-                self.emit(f"\t{op}\t{self.get_num_label(val)}")
+                self.emit(f"\t{op:<8}{self.get_num_label(val)}")
                 self.eat(TokenType.NUMBER)
             else:
                 self.error("Invalid expression element")
